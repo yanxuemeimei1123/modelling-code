@@ -110,7 +110,7 @@ transform <- make_transform(beta_0, beta_s, i_0, p)
 
 
 control <- mcstate::pmcmc_control(
-  n_steps = 1000,
+  n_steps = 5000,
   n_threads_total = 8,
   save_state = TRUE,
   save_trajectories = TRUE,
@@ -140,7 +140,7 @@ proposal_matrix
 mcmc_pars <- mcstate::pmcmc_parameters$new(prior, proposal_matrix, transform)
 
 control <- mcstate::pmcmc_control(
-  n_steps = 1000,
+  n_steps = 10000,
   save_state = TRUE,
   save_trajectories = TRUE,
   progress = TRUE,
