@@ -6,6 +6,7 @@ library(odin)
 library(odin.dust)
 library(mcstate)
 library(coda)
+library(boot)
 
 # ------
 
@@ -14,7 +15,8 @@ gen_sir <- odin.dust::odin_dust('sir.R')
 
 # 2005-2019
 
-data <- read.xlsx('ev71.xlsx') %>% 
+data <- read.xlsx('hfmd derived ev by week.xlsx') %>% 
+  filter(virus == 'EV71') %>% 
   filter(year < 2020) %>%
   arrange(week.no) %>% select(week.no, value)
 
@@ -26,7 +28,7 @@ data_p <- mcstate::particle_filter_data(data, time = "week.no", rate = 7, initia
 
 # ------
 
-pop <- read.xlsx('population.xlsx', sheet = 'Sheet2') %>% 
+pop <- read.xlsx('Japan population.xlsx', sheet = 'Sheet2') %>% 
   filter(Year >= 2005) %>%
   mutate(birth_rate = Live.births/(Total*1000*52*7), death_rate = Deaths/(Total*1000*52*7),
          birth = Live.births/(52*7), death = Deaths/(52*7)) %>%         
@@ -90,7 +92,7 @@ prior <- list(
     dbeta(p, 2, 100, log = TRUE))
 )
 
-
+ 
 transform <- function(theta) {
   as.list(theta)
 }
@@ -108,6 +110,7 @@ make_transform <- function(beta_0, beta_s, i_0, p) {
 
 transform <- make_transform(beta_0, beta_s, i_0, p)
 
+# transform <- make_transform(beta_0, inv.logit(beta_s), inv.logit(i_0), inv.logit(p))
 
 control <- mcstate::pmcmc_control(
   n_steps = 5000,
@@ -119,18 +122,19 @@ control <- mcstate::pmcmc_control(
   rerun_random = TRUE
 )
 
-# (1.4, 0.13, 3e-05, 2e-04)
-proposal_matrix <- diag(c(0.2, 0.01, 1e-09, 1e-08), 4)
+
+proposal_matrix <- diag(c(0.1, 0.01, 1e-09, 1e-08), 4)
+# proposal_matrix <- diag(0.1, 4)    # cvc for inv.logit transform
 
 mcmc_pars <- mcstate::pmcmc_parameters$new(prior, proposal_matrix, transform)
 # mcmc_pars$model(mcmc_pars$initial())
 
 pmcmc <- mcstate::pmcmc(mcmc_pars, filter, control = control)
 
-# mcmc <- coda::as.mcmc(cbind(pmcmc$probabilities, pmcmc$pars))
-# summary(mcmc)
-# coda::effectiveSize(mcmc)
-# 1 - coda::rejectionRate(mcmc)
+mcmc <- coda::as.mcmc(cbind(pmcmc$probabilities, pmcmc$pars))
+summary(mcmc)
+coda::effectiveSize(mcmc)
+1 - coda::rejectionRate(mcmc)
 # plot(mcmc)
 
 # ----------------
@@ -144,8 +148,8 @@ control <- mcstate::pmcmc_control(
   save_state = TRUE,
   save_trajectories = TRUE,
   progress = TRUE,
-  n_chains = 4,
-  n_workers = 4,
+  n_chains = 1,
+  # n_workers = 4,
   n_threads_total = 8,
   rerun_every = 50,
   rerun_random = TRUE
@@ -154,6 +158,13 @@ control <- mcstate::pmcmc_control(
 
 pmcmc1 <- mcstate::pmcmc(mcmc_pars, filter, control = control)
 
+mcmc1 <- coda::as.mcmc(cbind(pmcmc1$probabilities, pmcmc1$pars))
+summary(mcmc1)
+coda::effectiveSize(mcmc1)
+1 - coda::rejectionRate(mcmc1)
+# plot(mcmc1)
+
+# write_rds(pmcmc1, "pmcmc71.rds")
 
 
 
